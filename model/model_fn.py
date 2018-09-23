@@ -88,18 +88,18 @@ def decoding_layer(dec_input,
                                             output_layer,
                                             params)
 
-    if not is_training:
-        with tf.variable_scope("decode", reuse=True):
-            infer_output = decoding_layer_infer(encoder_state,
-                                                cells,
-                                                embeddings,
-                                                max_target_sequence_length,
-                                                output_layer,
-                                                params)
+    # if not is_training:
+    with tf.variable_scope("decode", reuse=True):
+        infer_output = decoding_layer_infer(encoder_state,
+                                            cells,
+                                            embeddings,
+                                            max_target_sequence_length,
+                                            output_layer,
+                                            params)
 
-        return train_output, infer_output
-    else:
-        return train_output, None
+    return train_output, infer_output
+    # else:
+    #     return train_output, None
 
 
 def seq2seq_model(input_data,
@@ -138,10 +138,10 @@ def build_model(is_training, sentences, labels, params):
                                  dtype=tf.float32)
 
     source_input = tf.nn.embedding_lookup(embeddings, sentences)
-    if not is_training:
-        target_input = source_input
-    else:
-        target_input = tf.nn.embedding_lookup(embeddings, labels)
+    # if not is_training:
+    #     target_input = source_input
+    # else:
+    target_input = tf.nn.embedding_lookup(embeddings, labels)
 
     train_logits, inference_logits = seq2seq_model(source_input,
                                                    target_input,
@@ -153,11 +153,11 @@ def build_model(is_training, sentences, labels, params):
 
     training_logits = tf.identity(train_logits.rnn_output, name='logits')
 
-    if not is_training:
-        inference_logits = tf.identity(inference_logits.rnn_output, name='predictions')
-        return training_logits, inference_logits
-    else:
-        return training_logits, None
+    # if not is_training:
+    inference_logits = tf.identity(inference_logits.rnn_output, name='predictions')
+    return training_logits, inference_logits
+    # else:
+    #     return training_logits, None
 
 
 def model_fn(features, labels, mode, params):
@@ -172,8 +172,8 @@ def model_fn(features, labels, mode, params):
         return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions)
 
     # TODO: переделать маску
-    mask = tf.sequence_mask(tf.fill([params['batch_size']], tf.shape(features)[1]), tf.shape(features)[1], dtype=tf.float32, name='mask')
-    # mask = tf.ones_like(labels, dtype=tf.float32)
+    # mask = tf.sequence_mask(tf.fill([params['batch_size']], tf.shape(features)[1]), tf.shape(features)[1], dtype=tf.float32, name='mask')
+    mask = tf.ones_like(labels, dtype=tf.float32)
     loss = tf.contrib.seq2seq.sequence_loss(training_logits, labels, mask)
 
     tf.summary.scalar('loss', loss)

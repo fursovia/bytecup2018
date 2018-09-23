@@ -72,6 +72,7 @@ if __name__ == '__main__':
     data = pd.DataFrame(new_data, columns=['id', 'content', 'title'])
     num_ex = data.shape[0]
 
+    print('Cleaning the data...')
     data['content'] = data['content'].apply(lambda string: tokenize_string(string).casefold())
     data['title'] = data['title'].apply(lambda string: tokenize_string(string).casefold())
 

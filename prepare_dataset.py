@@ -8,6 +8,7 @@ import os
 from glob import glob
 import gc
 from sklearn.model_selection import train_test_split
+from zipfile import ZipFile
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-dd', '--data_dir', default='data')
@@ -47,14 +48,21 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     print('Reading the data')
-    filenames = glob(os.join(args.data_dir, '*[0-9].txt'))
+    data_dir = args.data_dir
+    zip_filenames = glob(os.path.join(data_dir, '*[0-9].zip'))
+    txt_filenames = [fn.split(sep='/')[-1][:-4] + '.txt' for fn in zip_filenames]
 
     data = []
-    for file_name in filenames:
-        with open(file_name, 'r') as file:
-            d = file.readlines()
-            data.extend(d)
+    for i, file_name in enumerate(zip_filenames):
+        print('File: {}'.format(file_name))
+        print('File inside: {}'.format(txt_filenames[i]))
 
+        with ZipFile(file_name) as myzip:
+            with myzip.open(txt_filenames[i]) as myfile:
+                d = myfile.readlines()
+                data.extend(d)
+
+    print('Reformatting the data...')
     with Pool(10) as p:
         new_data = p.map(get_data, data)
 

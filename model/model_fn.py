@@ -152,9 +152,12 @@ def build_model(is_training, sentences, labels, params):
                                                    is_training)
 
     training_logits = tf.identity(train_logits.rnn_output, name='logits')
-    inference_logits = tf.identity(inference_logits.rnn_output, name='predictions')
 
-    return training_logits, inference_logits
+    if not is_training:
+        inference_logits = tf.identity(inference_logits.rnn_output, name='predictions')
+        return training_logits, inference_logits
+    else:
+        return training_logits, None
 
 
 def model_fn(features, labels, mode, params):

@@ -152,7 +152,7 @@ def build_model(is_training, sentences, labels, params):
                                                    is_training)
 
     training_logits = tf.identity(train_logits.rnn_output, name='logits')
-    inference_logits = tf.identity(inference_logits.sample_id, name='predictions')
+    inference_logits = tf.identity(inference_logits.rnn_output, name='predictions')
 
     return training_logits, inference_logits
 

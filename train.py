@@ -73,4 +73,4 @@ if __name__ == '__main__':
         nrows = None
         params['train_size'] = int(pd.read_csv(data_path).shape[0] * 0.9)
 
-    estimator.train(lambda: input_fn(data_path, params, is_training=True, nrows=nrows))
+    estimator.train(lambda: input_fn(data_path, params, is_training=True))

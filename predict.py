@@ -67,7 +67,7 @@ if __name__ == '__main__':
         nrows = None
 
     tf.logging.info("Predicting the data...")
-    train_predictions = estimator.predict(lambda: input_fn(data_path, params, is_training=False, nrows=nrows))
+    train_predictions = estimator.predict(lambda: input_fn(data_path, params, is_training=False))
 
     preds = []
     for i, p in tqdm(enumerate(train_predictions)):

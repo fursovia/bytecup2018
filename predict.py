@@ -5,6 +5,7 @@ from model.input_fn import input_fn
 from model.model_fn import model_fn
 from tqdm import tqdm
 import pickle
+from train import params
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-md', '--model_dir', default='experiments')
@@ -25,17 +26,27 @@ params = {'rnn_size': 256,
           'learning_rate': 0.001}
 
 
+def decode_preds(probs, vocab):
+    words = []
+    for row in probs:
+        word = vocab[row.argmax()]
+        words.append(word)
+
+    return ' '.join(words)
+
+
 if __name__ == '__main__':
     tf.reset_default_graph()
     tf.logging.set_verbosity(tf.logging.INFO)
 
     args = parser.parse_args()
 
+    vocab = []
     with open(params['vocabulary_path'], 'r') as file:
-        num_lines = 0
-        for _ in file:
-            num_lines += 1
+        for line in file:
+            vocab.append(line.replace('\n', ''))
 
+    num_lines = len(vocab)
     params['vocab_size'] = num_lines + 1
     params['end_id'] = num_lines - 1
     params['go_id'] = num_lines - 2
@@ -48,11 +59,11 @@ if __name__ == '__main__':
                                        params=params,
                                        config=config)
 
-    data_path = os.path.join(args.data_dir, 'eval.csv')
-
     if args.sample:
+        data_path = os.path.join(args.data_dir, 'sample', 'eval.csv')
         nrows = 100
     else:
+        data_path = os.path.join(args.data_dir, 'eval.csv')
         nrows = None
 
     tf.logging.info("Predicting the data...")
@@ -60,7 +71,13 @@ if __name__ == '__main__':
 
     preds = []
     for i, p in tqdm(enumerate(train_predictions)):
-        preds.append(p['preds'])
+        probs = p['preds']
+        gen_line = decode_preds(probs, vocab)
+        preds.append(gen_line)
+
+    print('Predictions: \n\n{}'.format('\n'.join(preds)))
 
     tf.logging.info("Saving the data...")
-    pickle.dump(preds, open(os.path.join(args.data_dir, 'preds.pkl'), 'wb'))
+    with open(os.path.join(args.data_dir, 'results.txt'), 'w') as file:
+        for p in preds:
+            file.write(f'{p}\n')

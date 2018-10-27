@@ -12,6 +12,9 @@ from zipfile import ZipFile
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-dd', '--data_dir', default='data')
+parser.add_argument('-s', '--sample', action='store_true')
+
+parser.set_defaults(sample=False)
 
 
 def get_data(line):
@@ -69,7 +72,16 @@ if __name__ == '__main__':
     del data
     gc.collect()
 
-    data = pd.DataFrame(new_data, columns=['id', 'content', 'title'])
+    if args.sample:
+        num_els = 10000
+        data_dir = os.path.join(data_dir, 'sample')
+
+        if not os.path.exists(data_dir):
+            os.makedirs(data_dir)
+    else:
+        num_els = None
+
+    data = pd.DataFrame(new_data[:num_els], columns=['id', 'content', 'title'])
     num_ex = data.shape[0]
 
     print('Cleaning the data...')
@@ -85,8 +97,8 @@ if __name__ == '__main__':
     print('{} examples dropped'.format(num_ex - data.shape[0]))
 
     data_tr, data_ev = train_test_split(data, test_size=0.1, random_state=24)
-    train_path = os.path.join('data', 'train.csv')
-    eval_path = os.path.join('data', 'eval.csv')
+    train_path = os.path.join(data_dir, 'train.csv')
+    eval_path = os.path.join(data_dir, 'eval.csv')
 
     data_tr.to_csv(train_path, index=False)
     data_ev.to_csv(eval_path, index=False)

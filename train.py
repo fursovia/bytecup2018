@@ -9,7 +9,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-c', '--cuda', default='0')
 parser.add_argument('-md', '--model_dir', default='experiments')
 parser.add_argument('-dd', '--data_dir', default='data')
-parser.add_argument('-bs', '--batch_size', type=int, default=8)
+parser.add_argument('-bs', '--batch_size', type=int, default=4)
 parser.add_argument('-ne', '--num_epochs', type=int, default=1)
 parser.add_argument('-s', '--sample', action='store_true')
 
@@ -64,12 +64,12 @@ if __name__ == '__main__':
                                        params=params,
                                        config=config)
 
-    data_path = os.path.join(args.data_dir, 'train.csv')
-
     if args.sample:
+        data_path = os.path.join(args.data_dir, 'sample', 'train.csv')
         nrows = 100
         params['train_size'] = nrows
     else:
+        data_path = os.path.join(args.data_dir, 'train.csv')
         nrows = None
         params['train_size'] = int(pd.read_csv(data_path).shape[0] * 0.9)
 

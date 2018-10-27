@@ -3,8 +3,10 @@ import pandas as pd
 
 
 def build_vocab(file_name):
-    words = tf.contrib.lookup.index_table_from_file(file_name, num_oov_buckets=1, delimiter='\n', name='vocab')
-    tf.add_to_collection(tf.GraphKeys.TABLE_INITIALIZERS, words.init)
+    words = tf.contrib.lookup.index_table_from_file(file_name,
+                                                    num_oov_buckets=1,
+                                                    delimiter='\n',
+                                                    name='vocab')
     return words
 
 
@@ -26,10 +28,13 @@ def input_fn(data_path, params, is_training=True, nrows=None):
 
     vocab = build_vocab(params['vocabulary_path'])
     id_pad_word = vocab.lookup(tf.constant('<PAD>'))
-    dataset = load_dataset_from_pd(pd_dframe, vocab)
+    fake_padding = tf.constant(20, dtype=tf.int32)
 
-    padded_shapes = (tf.TensorShape([None]), tf.TensorShape([None]))
-    padding_values = (id_pad_word, id_pad_word)
+    dataset = load_dataset_from_pd(pd_dframe, vocab)
+    dataset = dataset.map(lambda s, t: (s, t, tf.shape(s)[-1], tf.shape(t)[-1]))
+
+    padded_shapes = (tf.TensorShape([None]), tf.TensorShape([None]), tf.TensorShape([]), tf.TensorShape([]))
+    padding_values = (id_pad_word, id_pad_word, fake_padding, fake_padding)
 
     if is_training:
         dataset = dataset.shuffle(params['train_size'])
@@ -41,5 +46,6 @@ def input_fn(data_path, params, is_training=True, nrows=None):
                                    drop_remainder=True)
 
     dataset = dataset.prefetch(buffer_size=None)
+    dataset = dataset.map(lambda s, t, ss, ts: ({'source': s, 'source_len': ss, 'target_len': ts}, t))
 
     return dataset

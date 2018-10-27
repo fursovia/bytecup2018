@@ -13,6 +13,7 @@ from zipfile import ZipFile
 parser = argparse.ArgumentParser()
 parser.add_argument('-dd', '--data_dir', default='data')
 parser.add_argument('-s', '--sample', action='store_true')
+parser.add_argument('-wc', '--word_count', type=int, default=5)
 
 parser.set_defaults(sample=False)
 
@@ -104,5 +105,5 @@ if __name__ == '__main__':
     data_ev.to_csv(eval_path, index=False)
 
     print('Creating vocab...')
-    vocabulary = create_vocab(pd.concat((data['content'], data['title'])))
+    vocabulary = create_vocab(pd.concat((data['content'], data['title'])), min_count_word=args.word_count)
     save_vocab_to_txt_file(vocabulary, 'data/words.txt')

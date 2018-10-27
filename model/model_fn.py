@@ -171,8 +171,11 @@ def model_fn(features, labels, mode, params):
     mask = tf.sequence_mask(target_sequence_length, tf.reduce_max(target_sequence_length),
                             dtype=tf.float32,
                             name='mask')
+    # tf.nn.sparse_softmax_cross_entropy_with_logits
+    # loss = tf.contrib.seq2seq.sequence_loss(logits, labels, mask)
 
-    loss = tf.contrib.seq2seq.sequence_loss(logits, labels, mask)
+    crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=labels)
+    loss = tf.reduce_sum(crossent * mask) / tf.to_float(params['batch_size'])
 
     tf.summary.scalar('loss', loss)
 

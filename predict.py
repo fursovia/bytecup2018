@@ -29,7 +29,7 @@ params = {'rnn_size': 256,
 def decode_preds(probs, vocab):
     words = []
     for row in probs:
-        word = vocab[row.argmax()]
+        word = vocab[row]
         words.append(word)
 
     return ' '.join(words)

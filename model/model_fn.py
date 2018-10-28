@@ -151,8 +151,10 @@ class Model:
                                     target_sequence_length,
                                     max_summary_length,
                                     is_training)
-
-        logits = tf.identity(logits.rnn_output, name='logits')
+        if is_training:
+            logits = tf.identity(logits.rnn_output, name='logits')
+        else:
+            logits = tf.identity(logits.sample_id, name='logits')
         return logits
 
 

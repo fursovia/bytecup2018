@@ -4,7 +4,6 @@ import argparse
 from model.input_fn import input_fn
 from model.model_fn import model_fn
 from tqdm import tqdm
-import pickle
 from train import params
 
 parser = argparse.ArgumentParser()
@@ -71,6 +70,8 @@ if __name__ == '__main__':
 
     preds = []
     for i, p in tqdm(enumerate(train_predictions)):
+        if args.sample and i > 100:
+            break
         probs = p['preds']
         gen_line = decode_preds(probs, vocab)
         preds.append(gen_line)

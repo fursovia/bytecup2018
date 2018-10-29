@@ -58,7 +58,9 @@ if __name__ == '__main__':
     config = tf.estimator.RunConfig(tf_random_seed=43,
                                     model_dir=args.model_dir,
                                     save_summary_steps=params['save_summary_steps'],
-                                    train_distribute=distribution)
+                                    train_distribute=distribution,
+                                    keep_checkpoint_max=None,
+                                    save_checkpoints_steps=800)
 
     estimator = tf.estimator.Estimator(model_fn,
                                        params=params,

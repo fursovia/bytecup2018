@@ -26,6 +26,8 @@ params = {'rnn_size': 256,
 
 
 def decode_preds(probs, vocab):
+    print('*'*200)
+    print(probs)
     words = []
     for row in probs:
         word = vocab[row]
@@ -59,11 +61,13 @@ if __name__ == '__main__':
                                        config=config)
 
     if args.sample:
-        data_path = os.path.join(args.data_dir, 'sample', 'eval.csv')
-        nrows = 100
+        dp = os.path.join(args.data_dir, 'sample', 'eval.csv')
+        if os.path.exists(dp):
+            data_path = dp
+        else:
+            data_path = os.path.join(args.data_dir, 'eval.csv')
     else:
         data_path = os.path.join(args.data_dir, 'eval.csv')
-        nrows = None
 
     tf.logging.info("Predicting the data...")
     train_predictions = estimator.predict(lambda: input_fn(data_path, params, is_training=False))

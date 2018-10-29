@@ -11,12 +11,15 @@ class Model:
         self.end_id = params['end_id']
         self.vocab_size = params['vocab_size']
         self.embedding_size = params['embedding_size']
+        self.beam_width = 3
         self.max_summary_length = 15
-
         self.rnn_cell = tf.nn.rnn_cell.LSTMCell
         self.embed_matrix = tf.get_variable("embedding_matrix",
                                             shape=[self.vocab_size, self.embedding_size],
                                             dtype=tf.float32)
+
+        with tf.variable_scope('decoder/projection'):
+            self.output_layer = tf.layers.Dense(self.vocab_size, use_bias=False)
 
     def embed_inputs(self, inputs):
         return tf.nn.embedding_lookup(self.embed_matrix, inputs)
@@ -24,16 +27,13 @@ class Model:
     def seq2seq_model(self,
                       input_data,
                       target_data,
-                      target_sequence_length,
-                      max_target_sentence_length,
                       is_training):
 
-        enc_outputs, enc_states = self.encoding_layer(input_data)
+        enc_outputs, enc_state = self.encoding_layer(input_data)
 
         output = self.decoding_layer(target_data,
-                                     enc_states,
-                                     target_sequence_length,
-                                     max_target_sentence_length,
+                                     enc_state,
+                                     enc_outputs,
                                      is_training)
 
         return output
@@ -48,113 +48,123 @@ class Model:
         outputs, state = tf.nn.dynamic_rnn(cell=stacked_cells,
                                            inputs=inputs,
                                            dtype=tf.float32)
-        return outputs, state
+        return outputs, state[0]
 
-    def decoding_layer(self, dec_input,
+    def decoding_layer(self,
+                       dec_input,
                        encoder_state,
-                       target_sequence_length,
-                       max_target_sequence_length,
+                       enc_outputs,
                        is_training):
 
-        with tf.variable_scope('decoder/projection'):
-            output_layer = tf.layers.Dense(self.vocab_size, use_bias=False)
-
-        dec_cell = self.rnn_cell(self.rnn_size)
-        cells = tf.nn.rnn_cell.MultiRNNCell([dec_cell for _ in range(self.num_layers)])
+        cells = self.rnn_cell(self.rnn_size)
+        # cells = tf.nn.rnn_cell.MultiRNNCell([dec_cell for _ in range(self.num_layers)])
 
         with tf.name_scope('decoder'), tf.variable_scope('decoder') as decoder_scope:
             if is_training:
                 output = self.decoding_layer_train(encoder_state,
+                                                   enc_outputs,
                                                    cells,
                                                    dec_input,
-                                                   target_sequence_length,
-                                                   max_target_sequence_length,
-                                                   output_layer,
                                                    decoder_scope)
             else:
+                # return encoder_state, enc_outputs, cells, decoder_scope
                 output = self.decoding_layer_infer(encoder_state,
+                                                   enc_outputs,
                                                    cells,
-                                                   max_target_sequence_length,
-                                                   output_layer,
                                                    decoder_scope)
 
         return output
 
     def decoding_layer_train(self,
                              encoder_state,
+                             enc_outputs,
                              dec_cell,
                              dec_embed_input,
-                             target_sequence_length,
-                             max_summary_length,
-                             output_layer,
                              scope):
 
-        dec_cell = tf.nn.rnn_cell.DropoutWrapper(cell=dec_cell, output_keep_prob=self.keep_prob)
+        attention_mechanism = tf.contrib.seq2seq.BahdanauAttention(self.rnn_size * 2,
+                                                                   enc_outputs,
+                                                                   memory_sequence_length=self.target_sequence_length,
+                                                                   normalize=True)
 
-        helper = tf.contrib.seq2seq.TrainingHelper(inputs=dec_embed_input, sequence_length=target_sequence_length)
+        decoder_cell = tf.contrib.seq2seq.AttentionWrapper(dec_cell,
+                                                           attention_mechanism,
+                                                           attention_layer_size=self.rnn_size * 2)
 
-        decoder = tf.contrib.seq2seq.BasicDecoder(cell=dec_cell,
+        initial_state = decoder_cell.zero_state(dtype=tf.float32, batch_size=self.batch_size)
+        initial_state = initial_state.clone(cell_state=encoder_state)
+
+        helper = tf.contrib.seq2seq.TrainingHelper(inputs=dec_embed_input, sequence_length=self.target_sequence_length)
+
+        decoder = tf.contrib.seq2seq.BasicDecoder(cell=decoder_cell,
                                                   helper=helper,
-                                                  initial_state=encoder_state,
-                                                  output_layer=output_layer)
+                                                  initial_state=initial_state,
+                                                  output_layer=self.output_layer)
 
         outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(decoder=decoder,
-                                                          impute_finished=True,
-                                                          maximum_iterations=max_summary_length,
                                                           scope=scope)
         return outputs
 
     def decoding_layer_infer(self,
                              encoder_state,
+                             enc_outputs,
                              dec_cell,
-                             max_summary_length,
-                             output_layer,
                              scope):
 
-        dec_cell = tf.contrib.rnn.DropoutWrapper(cell=dec_cell,
-                                                 output_keep_prob=self.keep_prob)
+        tiled_encoder_output = tf.contrib.seq2seq.tile_batch(enc_outputs, multiplier=self.beam_width)
+        tiled_encoder_final_state = tf.contrib.seq2seq.tile_batch(encoder_state, multiplier=self.beam_width)
+        tiled_seq_len = tf.contrib.seq2seq.tile_batch(tf.fill([self.batch_size], self.max_summary_length),
+                                                      multiplier=self.beam_width)
 
-        helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(embedding=self.embed_matrix,
-                                                          start_tokens=tf.fill([self.batch_size], self.go_id),
-                                                          end_token=self.end_id)
+        attention_mechanism = tf.contrib.seq2seq.BahdanauAttention(self.rnn_size * 2,
+                                                                   tiled_encoder_output,
+                                                                   memory_sequence_length=tiled_seq_len,
+                                                                   normalize=True)
 
-        decoder = tf.contrib.seq2seq.BasicDecoder(cell=dec_cell,
-                                                  helper=helper,
-                                                  initial_state=encoder_state,
-                                                  output_layer=output_layer)
+        decoder_cell = tf.contrib.seq2seq.AttentionWrapper(dec_cell,
+                                                           attention_mechanism,
+                                                           attention_layer_size=self.rnn_size * 2)
+
+        initial_state = decoder_cell.zero_state(dtype=tf.float32, batch_size=self.batch_size * self.beam_width)
+        initial_state = initial_state.clone(cell_state=tiled_encoder_final_state)
+
+        decoder = tf.contrib.seq2seq.BeamSearchDecoder(
+            cell=decoder_cell,
+            embedding=self.embed_matrix,
+            start_tokens=tf.fill([self.batch_size], self.go_id),
+            end_token=self.end_id,
+            initial_state=initial_state,
+            beam_width=self.beam_width,
+            output_layer=self.output_layer)
 
         outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(decoder=decoder,
-                                                          impute_finished=True,
-                                                          maximum_iterations=max_summary_length,
+                                                          # impute_finished=True,
+                                                          maximum_iterations=self.max_summary_length,
                                                           scope=scope)
+
         return outputs
 
     def build_model(self, is_training, features, target):
 
         if is_training:
-            max_summary_length = tf.shape(target)[1]
-        else:
-            max_summary_length = self.max_summary_length
+            self.max_summary_length = tf.shape(target)[1]
 
-        # TODO: должен быть тензор из длин последовательностей
-        target_sequence_length = tf.fill([self.batch_size], max_summary_length)
+        self.target_sequence_length = tf.fill([self.batch_size], self.max_summary_length)
 
         source_input = self.embed_inputs(features['source'])
-        # костыль. estimator.predict меняет таргет на None
         if is_training:
             target_input = self.embed_inputs(target)
         else:
-            target_input = source_input
+            target_input = None
 
         logits = self.seq2seq_model(source_input,
                                     target_input,
-                                    target_sequence_length,
-                                    max_summary_length,
                                     is_training)
+
         if is_training:
             logits = tf.identity(logits.rnn_output, name='logits')
         else:
-            logits = tf.identity(logits.sample_id, name='logits')
+            logits = tf.identity(logits.predicted_ids[:, :, 0], name='logits')
         return logits
 
 
@@ -173,8 +183,6 @@ def model_fn(features, labels, mode, params):
     mask = tf.sequence_mask(target_sequence_length, tf.reduce_max(target_sequence_length),
                             dtype=tf.float32,
                             name='mask')
-    # tf.nn.sparse_softmax_cross_entropy_with_logits
-    # loss = tf.contrib.seq2seq.sequence_loss(logits, labels, mask)
 
     crossent = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=labels)
     loss = tf.reduce_sum(crossent * mask) / tf.to_float(params['batch_size'])

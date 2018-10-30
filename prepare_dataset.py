@@ -13,9 +13,11 @@ from zipfile import ZipFile
 parser = argparse.ArgumentParser()
 parser.add_argument('-dd', '--data_dir', default='data')
 parser.add_argument('-s', '--sample', action='store_true')
+parser.add_argument('-c', '--clip', action='store_true')
 parser.add_argument('-wc', '--word_count', type=int, default=5)
 
 parser.set_defaults(sample=False)
+parser.set_defaults(clip=False)
 
 
 def get_data(line):
@@ -92,6 +94,10 @@ if __name__ == '__main__':
     print('Dropping blank examples')
     data.drop(index=data[(data['content'].apply(lambda s: len(s.split())) == 0) |
                          (data['title'].apply(lambda s: len(s.split())) == 0)].index, inplace=True)
+
+    if args.clip:
+        print('Clipping...')
+        data['content'] = data['content'].apply(lambda s: ' '.join(s.split()[:500]))
 
     data['content'] = '<GO> ' + data['content'] + ' <EOS>'
     data['title'] = '<GO> ' + data['title'] + ' <EOS>'

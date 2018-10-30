@@ -80,7 +80,6 @@ if __name__ == '__main__':
 
     print('Predictions: \n\n{}'.format('\n'.join(preds)))
 
-    tf.logging.info("Saving the data...")
-    with open(os.path.join(args.data_dir, 'results.txt'), 'w') as file:
-        for p in preds:
-            file.write(f'{p}\n')
+    with open(os.path.join(args.model_dir, 'results.txt'), 'w') as file:
+        for line in preds:
+            file.write(f'{line}\n')

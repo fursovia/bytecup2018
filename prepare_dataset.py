@@ -93,6 +93,7 @@ if __name__ == '__main__':
     data.drop(index=data[(data['content'].apply(lambda s: len(s.split())) == 0) |
                          (data['title'].apply(lambda s: len(s.split())) == 0)].index, inplace=True)
 
+    data['content'] = '<GO> ' + data['content'] + ' <EOS>'
     data['title'] = '<GO> ' + data['title'] + ' <EOS>'
 
     print('{} examples dropped'.format(num_ex - data.shape[0]))

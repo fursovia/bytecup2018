@@ -10,8 +10,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-md', '--model_dir', default='experiments')
 parser.add_argument('-dd', '--data_dir', default='data')
 parser.add_argument('-s', '--sample', action='store_true')
+parser.add_argument('-t', '--train', action='store_true')
 
 parser.set_defaults(sample=False)
+parser.set_defaults(train=False)
 
 # TODO: импортить словарь из train.py, менять keep_prob
 params = {'rnn_size': 256,
@@ -58,14 +60,19 @@ if __name__ == '__main__':
                                        params=params,
                                        config=config)
 
+    if args.train:
+        file_name = 'train.csv'
+    else:
+        file_name = 'eval.csv'
+
     if args.sample:
-        dp = os.path.join(args.data_dir, 'sample', 'eval.csv')
+        dp = os.path.join(args.data_dir, 'sample', file_name)
         if os.path.exists(dp):
             data_path = dp
         else:
-            data_path = os.path.join(args.data_dir, 'eval.csv')
+            data_path = os.path.join(args.data_dir, file_name)
     else:
-        data_path = os.path.join(args.data_dir, 'eval.csv')
+        data_path = os.path.join(args.data_dir, file_name)
 
     tf.logging.info("Predicting the data...")
     train_predictions = estimator.predict(lambda: input_fn(data_path, params, is_training=False))

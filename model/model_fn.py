@@ -164,7 +164,7 @@ class Model:
         if is_training:
             logits = tf.identity(logits.rnn_output, name='logits')
         else:
-            logits = tf.identity(logits.predicted_ids[:, :, 0], name='logits')
+            logits = tf.identity(logits.predicted_ids[:, :, 1], name='logits')
         return logits
 
 

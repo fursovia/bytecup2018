@@ -26,8 +26,6 @@ params = {'rnn_size': 256,
 
 
 def decode_preds(probs, vocab):
-    print('*'*200)
-    print(probs)
     words = []
     for row in probs:
         word = vocab[row]
